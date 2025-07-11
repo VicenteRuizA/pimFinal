@@ -1,14 +1,20 @@
 from neuralnet import build_parallel_riciannet
-from dataloader import load_volumes, extract_patches
+from dataloader import load_volumes_combined, extract_patches
 from skimage.metrics import peak_signal_noise_ratio
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 
 def test_model():
-    vols = load_volumes('.')
-    noisy = vols['5']
-    clean = vols['0']
+    print("📦 Loading volumes (combined MNC + MR)...")
+    vols = load_volumes_combined('.')
+
+    # Test only on noise level 5% or choose any you want
+    noisy = vols.get('5')
+    clean = vols.get('0')
+    if noisy is None or clean is None:
+        print("Test volumes missing noise '5' or clean '0'")
+        return
 
     x_patches = extract_patches(noisy)
     y_patches = extract_patches(clean)
@@ -16,10 +22,9 @@ def test_model():
     x_test = np.array(x_patches)[..., np.newaxis]
     y_test = np.array(y_patches)[..., np.newaxis]
 
-    # Normalize to [0,1] to avoid overflow in PSNR
-    max_val = np.max(x_test)
-    x_test = x_test / max_val
-    y_test = y_test / max_val
+    # Normalize to [0,1]
+    x_test = x_test / np.max(x_test)
+    y_test = y_test / np.max(y_test)
 
     model = build_parallel_riciannet()
     model.load_weights("saved_models/riciannet_lite.h5")
@@ -35,10 +40,10 @@ def test_model():
     avg_psnr = total_psnr / len(preds)
     print(f"📈 Average PSNR on test set: {avg_psnr:.2f} dB")
 
-    # 🎨 Save visual comparison of 3D patch (center slice)
+    # Save visual comparisons for first 3 patches
     os.makedirs("denoised_examples", exist_ok=True)
-    for idx in range(3):  # Show first 3 examples
-        slice_idx = x_test[idx].shape[2] // 2  # middle slice (axis Z)
+    for idx in range(min(3, len(preds))):
+        slice_idx = x_test[idx].shape[2] // 2
         noisy_img = x_test[idx][:, :, slice_idx, 0]
         pred_img = preds[idx][:, :, slice_idx, 0]
         target_img = y_test[idx][:, :, slice_idx, 0]

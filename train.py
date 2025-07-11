@@ -1,16 +1,21 @@
 from neuralnet import build_parallel_riciannet
-from dataloader import load_volumes, extract_patches
+from dataloader import load_volumes_combined, extract_patches
 import tensorflow as tf
 import numpy as np
 import os
 
 def train_model():
-    print("📦 Loading volumes...")
-    vols = load_volumes('.')
+    print("📦 Loading volumes (combined MNC + MR)...")
+    vols = load_volumes_combined('.')
+
     x_train = []
     y_train = []
 
-    for level in ['1', '3', '5', '7', '9']:
+    # Use all noise levels except '0' which is ground truth
+    noise_levels = [k for k in vols.keys() if k != '0']
+    print(f"Using noise levels: {noise_levels}")
+
+    for level in noise_levels:
         print(f"🔄 Extracting patches for noise level: {level}%")
         noisy = vols[level]
         clean = vols['0']
@@ -19,13 +24,9 @@ def train_model():
         x_train.extend(x_patches)
         y_train.extend(y_patches)
 
+    # Limit number of samples to reduce memory use
     x_train = np.array(x_train)[..., np.newaxis][:200]
     y_train = np.array(y_train)[..., np.newaxis][:200]
-
-    # Normalize using same factor
-    max_val = np.max(x_train)
-    x_train = x_train / max_val
-    y_train = y_train / max_val
 
     model = build_parallel_riciannet()
     model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss='mse')
