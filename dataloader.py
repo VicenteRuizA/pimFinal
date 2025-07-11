@@ -11,11 +11,11 @@ def load_volumes(data_dir):
             volumes[level] = nib.load(path).get_fdata()
     return volumes
 
-def extract_patches(volume, patch_size=(64,64,64), stride=32):
+def extract_patches(volume, patch_size=(32,32,32), stride=16):
     patches = []
     for i in range(0, volume.shape[0] - patch_size[0], stride):
         for j in range(0, volume.shape[1] - patch_size[1], stride):
             for k in range(0, volume.shape[2] - patch_size[2], stride):
-                patch = volume[i:i+64, j:j+64, k:k+64]
+                patch = volume[i:i+32, j:j+32, k:k+32]
                 patches.append(patch)
     return patches
